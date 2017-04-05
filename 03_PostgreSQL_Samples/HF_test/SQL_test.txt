@@ -1,0 +1,158 @@
+--Write SQL statements to retrieve the following information:
+
+--1.	For the customer with email address ‘fancygirl83@hotmail.com’ show all product_skus the customer has an active subscription for.
+	
+SELECT
+	t3.product_sku	
+FROM schema.customer t1
+
+JOIN schema.subscription t2
+	ON t1.id_customer = t2.fk_customer
+
+JOIN schema.product t3
+	ON t2.fk_product_subscribed_to = t3.id_product
+
+WHERE t1.email = 'fancygirl83@hotmail.com'
+	AND t2.status = 'active'
+;
+--2.	Get all the customers that have an active subscription to a product that corresponds to a product family with product_family_handle = ‘classic-box’
+
+SELECT DISTINCT
+	t1.*
+FROM schema.customer t1
+
+JOIN schema.subscription t2
+	ON t1.id_customer = t2.fk_customer
+
+JOIN schema.product t3
+	ON t2.fk_product_subscribed_to = t3.id_product
+
+JOIN schema.product_family t4
+	ON t3.fk_product_family = t4.id_product_family
+
+WHERE t4.product_family_handle = 'classic-box'
+	AND t2.status = 'active'
+;
+--3.	Get all the paused subscriptions that have only received one box.
+
+SELECT
+	t3.*
+FROM
+	(SELECT
+		t1.id,
+		t1.status,
+		t1.created_at,
+		t1.updated_at,
+		COUNT(t2.id_order) as nb_orders
+	FROM schema.subscription t1
+
+	JOIN schema.order t2 ON t1.id = t2.fk_subscription
+
+	WHERE t1.status = 'paused'
+
+	GROUP BY t1.id,
+			t1.status,
+			t1.created_at,
+			t1.updated_at)
+	as t3
+
+WHERE t3.nb_orders = '1'
+;
+--4.	How many subscriptions do our customers have on average?
+
+SELECT
+	AVERAGE(t3.nb_subscriptions) as avg
+FROM
+	(SELECT
+		t1.id,
+		COUNT(DISTINCT t2.id_subscription) as nb_subscriptions
+	FROM schema.customer t1
+	LEFT JOIN schema.subscription t2
+		ON t1.id_customer = t2.fk_customer
+	GROUP BY t1.id) as t3
+;
+
+--5.	How many customers have ordered more than one product?
+
+SELECT
+	COUNT(DISTINCT CASE WHEN nb_products > 1 THEN t1.id_customer ELSE NULL END) as nb_customers
+FROM
+	(SELECT
+		t1.id_customer,
+		COUNT(t3.id_product) as nb_products
+	FROM customer t1
+
+	JOIN subscription t2 ON t1.id_customer = t2.fk_customer
+	JOIN product t3 ON t2.fk_product_subscribed_to = t3.id_product
+
+	GROUP BY t1.id_customer
+	) as t4
+
+
+--6.	How many customers have ordered more that one product with the same subscription?
+
+SELECT
+	COUNT(DISTINCT CASE WHEN nb_products > 1 THEN t1.id_customer ELSE NULL END) as nb_customers
+FROM
+	(SELECT
+		t1.id_customer,
+		t2.id_subscription,
+		COUNT(t3.id_product) as nb_products
+	FROM customer t1
+
+	JOIN subscription t2 ON t1.id_customer = t2.fk_customer
+	JOIN product t3 ON t2.fk_product_subscribed_to = t3.id_product
+
+	GROUP BY t1.id_customer, t2.id_subscription
+	) as t4
+
+
+--7.	Get a list of all customers which got a box delivered to them two weeks ago, and the count of boxes that had been delivered to them up to that week (loyalty)
+
+SELECT t4.* FROM
+
+	(SELECT
+			t1.id,
+			t1.first_name || ' ' || t1.last_name as customer_name,
+			COUNT(DISTINCT CASE WHEN t3.delivery_date > (current_date - interval '2 weeks') THEN t3.id_order ELSE NULL END) as nb_orders_l2w,
+			COUNT(DISTINCT CASE WHEN t3.delivery_date = (current_date - interval '2 weeks') THEN t3.id_order ELSE NULL END) as orders_2w_ago
+		FROM customer t1
+	
+		JOIN subscription t2 ON t1.id = t2.fk_customer
+		JOIN order t3 ON t2.id = t3.fk_subscription
+	
+		GROUP BY t1.id,
+				t1.first_name || ' ' || t1.last_name
+	) as t4
+
+WHERE t4.orders_2w_ago > 0
+
+--8.	For all our customers, get the date of the latest order delivered to them and include associated product_sku, delivery_date and purchase price.
+--	If there were two orders delivered to the same customer on the same date, they should both appear.
+
+SELECT
+	t4.*,
+	t5.product_sku
+
+FROM
+
+	(SELECT
+		t1.first_name || ' ' || t1.last_name as customer_name,
+		MAX(t3.delivery_date) as latest_order_delivered,
+		t3.id_order,
+		t3.fk_product,
+		t3.purchase_price
+
+	FROM t1.customer
+
+	JOIN subscription t2 ON t1.id = t2.fk_customer
+	JOIN order t3 ON t2.id = t3.fk_subscription
+
+	GROUP BY 
+
+		t1.first_name || ' ' || t1.last_name,
+		t3.id_order,
+		t3.fk_product,
+		t3.purchase_price) as t4
+
+JOIN product t5 ON t4.fk_product = t4.id_product

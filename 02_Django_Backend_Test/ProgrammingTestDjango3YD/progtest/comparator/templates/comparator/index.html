@@ -1,0 +1,33 @@
+<h1>3YOURMIND Comparator</h1>
+
+<h3>Welcome to our 3D printing price engine, please upload your .stl file,
+	select your material and we will generate a pricing list</h3>
+
+{% block content %}
+
+<form method="post" enctype="multipart/form-data">
+	{% csrf_token %} 
+	Company name:<br>
+  	<input type="text" name="clientname"><br>
+  	Email:<br>
+  	<input type="text" name="clientmail"><br><br>
+	<input type="file" name="fileupload" value="fileupload" id="fileupload"> 
+	<label for="fileupload"> Select a .stl file to upload</label>
+	<input type="submit" value="submit">
+</form><br>
+
+{% if uploaded_file_url %}
+	<p>File successfully uploaded.</p><br>
+	<ul>
+    {% for question in latest_question_list %}
+        <li><p> <p></li>
+    {% endfor %}
+    </ul>
+
+{% endif %}
+{% if volume %}
+	<p>Price charged based on file volume: {{ volume }}€</p>
+<br>
+{% endif %}
+
+{% endblock %}

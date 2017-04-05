@@ -1,0 +1,4 @@
+db_name: postgresql
+db_pw: passwordexample
+db_user: postgresql
+db_host: 130.130.30.30
